@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+<div id="app">
+</div>
+<div id="app2">
+</div>
+<script src="/packages/reactivity/dist/reactivity.global.js"></script>
+<!--<script src="/node_modules/@vue/reactivity/dist/reactivity.global.js"></script>-->
+
+<script>
+    const {effect, reactive, shallowReactive, readonly, shallowReadonly} = VueReactivity
+    let state = reactive({
+        name: 'wby',
+        age: {n: 11},
+        arr: [1, 2, 3, 4]
+    })
+    effect(() => {
+        // 这里面用到了，就会触发依赖收集，但是源码不会对内置的symbol收集
+        app.innerHTML = state.name + '今年' + state.age.n + '岁'
+        app2.innerHTML = state.arr[3] // 会触发数组的一系列属性,但是源码不会对内置的symbol收集
+
+    })
+    // vue中渲染会收集依赖，vue2属性收集的是watcher，vue3属性收集的是effect
+    // vue2用的是Object.defineProperty   Vue3是proxy
+    // state.name = 'wby33'
+    // state.age.n = 111333 // 懒代理 当取值时发现对应属性是对象的时候才会进行代理，性能比vue2高
+    setTimeout(() => {
+        state.name = '113333333'
+        state.arr.length = 10
+        state.arr.push('111')
+        // state.arr.length = 100
+        // console.log(state.arr)
+        setTimeout(() => {
+            state.arr.length = 1
+        }, 1000)
+    }, 1000)
+</script>
+</body>
+</html>

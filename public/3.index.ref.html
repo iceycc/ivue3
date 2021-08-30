@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+<div id="app">
+</div>
+<div id="app2">
+</div>
+<script src="/packages/reactivity/dist/reactivity.global.js"></script>
+<!--<script src="/node_modules/@vue/reactivity/dist/reactivity.global.js"></script>-->
+
+<script>
+    const {effect, reactive, ref, computed, shallowReactive, readonly, shallowReadonly} = VueReactivity
+    let num = 1
+    let counter = ref(num)
+    effect(function () {
+        app.innerHTML = `${counter.value}`
+    })
+
+    console.log(counter)
+    // RefImpl {_shallow: false, dep: Set(1), __v_isRef: true, _rawValue: 1, _value: 1}
+    // dep: Set(1) {ReactiveEffect}
+    // __v_isRef: true
+    // _rawValue: 1
+    // _shallow: false
+    // _value: 1
+    // value: 2
+
+    setTimeout(() => {
+        counter.value++
+    },1000)
+
+
+</script>
+</body>
+</html>

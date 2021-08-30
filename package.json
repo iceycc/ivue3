@@ -1,0 +1,31 @@
+{
+  "name": "my-vue3",
+  "version": "1.0.0",
+  "description": "",
+  "main": "rollup.config.js",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "dependencies": {
+    "rollup": "^2.56.3",
+    "rollup-plugin-serve": "^1.1.0",
+    "rollup-plugin-typescript2": "^0.30.0",
+    "typescript": "^4.4.2",
+    "vue": "^3.2.6"
+  },
+  "devDependencies": {
+    "@rollup/plugin-json": "^4.1.0",
+    "@rollup/plugin-node-resolve": "^13.0.4",
+    "execa": "^5.1.1"
+  },
+  "scripts": {
+    "serve": "rollup -c rollup.config.web.js",
+    "build": "node scripts/build.js",
+    "build:dev": "node scripts/dev.js -wc runtime-dom",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

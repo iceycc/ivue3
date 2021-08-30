@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+<div id="app">
+</div>
+<div id="app2">
+</div>
+<script src="/packages/reactivity/dist/reactivity.global.js"></script>
+<!--<script src="/node_modules/@vue/reactivity/dist/reactivity.global.js"></script>-->
+
+<script>
+    const {effect, reactive, computed, shallowReactive, readonly, shallowReadonly} = VueReactivity
+    let state = reactive({
+        name: 'wby',
+        age: 11,
+        arr: [1, 2, 3, 4]
+    })
+    // computed({
+    //     get(){},
+    //     set(){}
+    // })
+
+    // 当执行函数时， 默认只会收集计算属性的effect
+    // 应该让计算属性 收集他外层的effect
+
+    // 1.计算属性是一个effect   age=> computed effect => scheduler =》 myAge.value => effect
+
+    let myAge = computed(() => {
+        console.log('myage111')
+        return state.age + 10
+    })
+    effect(() => {
+        app.innerHTML = myAge.value + state.name
+    })
+    setTimeout(() => {
+        state.age = 30
+    }, 1000)
+
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+<div id="app">
+</div>
+<script src="/packages/reactivity/dist/reactivity.global.js"></script>
+<script src="/packages/runtime-dom/dist/runtime-dom.global.js"></script>
+<!--<script src="/node_modules/vue/dist/vue.global.js"></script>-->
+<script>
+    const {h, createApp, reactive} = Vue
+
+    function useSetName() {
+        let state = reactive({
+            name: 'wby'
+        })
+        setTimeout(() => {
+            state.name = 'wnu'
+        }, 1000)
+        return state
+    }
+
+    const App = {
+        setup() { //入口函数, setUp默认会执行一次effect
+            let state = useSetName()
+            // 返回可以是对象也可以是函数
+            // 返回函数：
+            return () => {
+                return h('div', {style: {color: 'red'}}, '你好呀' + state.name)
+            }
+
+        },
+        // 这个还支持但是有些使用setup
+        render() {
+            return h('div', {style: {color: 'red'}}, '你好呀222')
+        }
+    }
+    console.log(createApp(App))
+    createApp(App).mount('#app')
+</script>
+</body>
+</html>

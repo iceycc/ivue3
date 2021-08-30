@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+<div id="app">
+</div>
+<div id="app2">
+</div>
+<script src="/packages/reactivity/dist/reactivity.global.js"></script>
+<!--<script src="/node_modules/@vue/reactivity/dist/reactivity.global.js"></script>-->
+
+<script>
+    const {effect, reactive, toRefs, ref, computed, shallowReactive, readonly, shallowReadonly} = VueReactivity
+    let counter = reactive({  // 解构后就不是响应式的了
+        a: 1,
+        b: ref(1) // 这里是ref了，但是取
+    })
+    console.log(counter.a)
+    console.log(counter.b) // 不需要value取，内部做了处理
+
+    let {a} = toRefs(counter);// 浅代理
+    effect(function () {
+        app.innerHTML = `${a.value}`
+    })
+    // 内置vue的渲染中碰到_isRef会自动取模版字符串内变量的value
+    console.log(a)
+    console.log(a.value)
+    // ObjectRefImpl {_object: Proxy, _key: "a", __v_isRef: true}
+    // __v_isRef: true
+    // _key: "a"
+    // _object: Proxy {a: 3}
+    // value: 3
+    setTimeout(() => {
+        counter.a++
+        a.value++
+    }, 1000)
+
+
+</script>
+</body>
+</html>
