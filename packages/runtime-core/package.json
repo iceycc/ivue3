@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "module": "dist/shared.esm-bundler.js",
+  "module": "dist/runtime-core.esm-bundler.js",
   "buildOptions": {
     "formats": [
       "esm-bundler",

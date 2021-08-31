@@ -3,6 +3,7 @@ export const nodeOps = {
         return document.createElement(type)
     },
     insert(child, parent, anchor = null) {
+        // anchor == null appendChild
         parent.insertBefore(child, anchor)
     },
     remove(child) {

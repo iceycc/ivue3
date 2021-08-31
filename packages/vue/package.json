@@ -1,0 +1,18 @@
+{
+  "name": "@iVue/vue",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "module": "dist/vue.esm-bundler.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "buildOptions":{
+    "name":"Vue",
+    "formats":[
+      "esm-bundler",
+      "cjs",
+      "global"
+    ]
+  }
+}

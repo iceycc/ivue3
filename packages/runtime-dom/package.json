@@ -3,16 +3,14 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "module": "dist/shared.esm-bundler.js",
+  "module": "dist/runtime-dom.esm-bundler.js",
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "buildOptions":{
-    "name":"Vue",
-    "formats":[
+  "buildOptions": {
+    "formats": [
       "esm-bundler",
-      "cjs",
-      "global"
+      "cjs"
     ]
   }
 }

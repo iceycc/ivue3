@@ -2,7 +2,7 @@ var isObject = function (val) { return typeof val == 'object' && val !== null; }
 var hasOwn = function (target, key) { return Object.prototype.hasOwnProperty.call(target, key); };
 var isArray = function (val) { return Array.isArray(val); };
 var hasChange = function (oldVal, newVal) { return oldVal !== newVal; };
-var isFunction = function (val) { return typeof val == 'function'; };
+var isFunction = function (val) { return typeof val === 'function'; };
 
 var effect = function (fn, options) {
     // 需要让传递来的fn 变成响应式的effect，数据有变化 这个fn就能重新执行

@@ -1,3 +1,30 @@
+## 相关命令
+- `npm run build` 会将packages下的包并发打包，并监听文件变化
+- `npm run serve` 本地调试用，会启动一个静态服务器，public下为相关测试用例
+- `npm run build:dev` 指定package单独打包
+
+## 项目目录
+```
+├── README.md
+├── package.json
+├── packages
+│   ├── reactivity
+│   ├── runtime-core
+│   ├── runtime-dom
+│   ├── sharedm
+│   └── vue
+├── public
+│   ├── index.html
+│   └── index.js
+├── rollup.config.js
+├── rollup.config.web.js
+├── scripts
+│   ├── build.js
+│   └── dev.js
+├── tsconfig.json
+└── yarn.lock
+```
+
 ## 区别介绍
 
 - 源码采用 `monorepo` 方式进行管理，将模块拆分到package目录中
@@ -27,5 +54,5 @@
 
 
 ## vue3虚拟dom， shapeFlag
-
+- shapeFlag 二进制 结合 位运算符
 ## vue3 diff算法

@@ -2,25 +2,215 @@
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
-function mount(el) {
-    console.log(el);
-}
-function createRenderer() {
-    return {
-        createApp: function (component) {
-            console.log('---11', component);
-            return {
-                mount: mount
-            };
+/*! *****************************************************************************
+Copyright (c) Microsoft Corporation.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+***************************************************************************** */
+
+var __assign = function() {
+    __assign = Object.assign || function __assign(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
         }
+        return t;
     };
-}
+    return __assign.apply(this, arguments);
+};
 
 var isObject = function (val) { return typeof val == 'object' && val !== null; };
 var hasOwn = function (target, key) { return Object.prototype.hasOwnProperty.call(target, key); };
 var isArray = function (val) { return Array.isArray(val); };
 var hasChange = function (oldVal, newVal) { return oldVal !== newVal; };
-var isFunction = function (val) { return typeof val == 'function'; };
+var isFunction = function (val) { return typeof val === 'function'; };
+var isString = function (val) { return typeof val === 'string'; };
+
+function createVNode(type, props, children) {
+    if (props === void 0) { props = {}; }
+    if (children === void 0) { children = null; }
+    //  如果是组件，那么组件类型是对象
+    var shapeFlags = isString(type) ? 1 /* ELEMENT */ :
+        isObject(type) ? 4 /* STATEFUL_COMPONENT */ :
+            0;
+    var vnode = {
+        type: type,
+        props: props,
+        children: children,
+        component: null,
+        el: null,
+        key: props.key,
+        shapeFlags: shapeFlags
+    };
+    if (isArray(children)) {
+        // 元素配合多个儿子
+        // 00000001 假如是元素
+        // 00010000 假如元素中有多个儿子
+        // |= 00010001 17 或运算符  在运算过程中有一个1就是1
+        vnode.shapeFlags |= 16 /* ARRAY_CHILDREN */; //
+    }
+    else {
+        // 0000010 假如是组件
+        // 组件里可能是空 也可能是文本
+        vnode.shapeFlags |= 8 /* TEXT_CHILDREN */;
+    }
+    return vnode;
+    // vue2里面区分孩子是不是数组
+}
+
+function createAppApi(render) {
+    return function (component) {
+        var app = {
+            mount: function (container) {
+                // (ast -> codegen) -> render -> vnode - dom
+                render(container);
+                var vnode = createVNode(component);
+                render(vnode, container);
+            }
+        };
+        return app;
+    };
+}
+
+function createComponentInstance(vnode) {
+    var instance = {
+        type: vnode.type,
+        props: vnode.props,
+        subTree: null,
+        vnode: vnode,
+        render: null,
+        setupState: null,
+        isMounted: false, // 目前这个组件有没有被挂载
+    };
+    return instance;
+}
+function setupComponent(instance) {
+    // 其他功能属性、插槽处理
+    // 状态组件的setup方法
+    setupStateFullComponent(instance);
+}
+function setupStateFullComponent(instance) {
+    var Component = instance.type;
+    var setup = Component.setup;
+    if (setup) {
+        // props和上下文
+        var setupResult = setup(instance.props, {});
+        console.log('setupResult', setupResult);
+    }
+}
+
+function createRenderer(options) {
+    var mountComponent = function (vnode, container) {
+        // vue是组件级更新的，每个组件应该有个effect/渲染effect 类比vue渲染watcher
+        // 组件的创建 拿到外面去
+        // 1 根据虚拟节点 创建实例
+        var instance = vnode.component = createComponentInstance(vnode);
+        // 2 找到setup方法
+        setupComponent(instance);
+    };
+    // 组件
+    var processComponent = function (n1, n2, container) {
+        if (n1 === null) {
+            // 组件挂载
+            mountComponent(n2);
+        }
+    };
+    var patch = function (n1, n2, container) {
+        // 开始渲染
+        var shapeFlags = n2.shapeFlags;
+        // 例如  0b1100 & 0b0001
+        //      0b1100 & 0b1000
+        if (shapeFlags & 1 /* ELEMENT */) ;
+        else if (shapeFlags & 4 /* STATEFUL_COMPONENT */) { // 状态组件
+            processComponent(n1, n2);
+        }
+    };
+    // options 不同平台传入的不同， 我们core中不关心options里的api具体是什么 ，只需要调用即可
+    var render = function (vnode, container) {
+        // 初次渲染 /  更新渲染(有prevVnode)
+        patch(null, vnode);
+    };
+    return {
+        createApp: createAppApi(render) // 方便拓展，改造成高阶函数方便传人参数
+    };
+}
+// 核心包很多方法
+
+var nodeOps = {
+    createElement: function (type) {
+        return document.createElement(type);
+    },
+    insert: function (child, parent, anchor) {
+        if (anchor === void 0) { anchor = null; }
+        // anchor == null appendChild
+        parent.insertBefore(child, anchor);
+    },
+    remove: function (child) {
+        var parent = child.parentNode;
+        if (parent) {
+            parent.removeChild(child);
+        }
+    },
+    setElementText: function (node, text) {
+        node.textContent = text;
+    },
+    createTextNode: function (content) {
+        return document.createTextNode(content);
+    }
+};
+
+function patchStyle(el, prev, next) {
+    // 如果原生next属性没有值
+    var style = el.style;
+    if (!next) {
+        el.removeAttribute('style');
+    }
+    else {
+        for (var key in next) { // 新的全量覆盖老的
+            style[key] = next[key];
+        }
+        if (prev) { // 老的有，新的没，移除
+            for (var key in prev) {
+                if (!next[key]) {
+                    style[key] = '';
+                }
+            }
+        }
+    }
+}
+function patchClass(el, next) {
+    if (next == null) {
+        next = '';
+    }
+    el.className = next;
+}
+function patchAttr(el, key, next) {
+    if (next == null) {
+        el.removeAttribute(key);
+    }
+    el.setAttribute(key, next);
+}
+function patchProp(el, key, prevValue, nextValue) {
+    switch (key) {
+        case 'style':
+            patchStyle(el, prevValue, nextValue);
+            break;
+        case 'class':
+            patchClass(el, nextValue);
+            break;
+        default:
+            patchAttr(el, key, nextValue);
+    }
+}
 
 var effect = function (fn, options) {
     // 需要让传递来的fn 变成响应式的effect，数据有变化 这个fn就能重新执行
@@ -305,10 +495,19 @@ function toRefs(object) {
 }
 
 function ensureRenderer() {
-    return createRenderer();
+    // 根据平台传人一些dom操作，创建、删除、添加、属性更新
+    return createRenderer(__assign(__assign({}, nodeOps), { patchProp: patchProp }));
 }
 function createApp(rootComponent) {
-    ensureRenderer().createApp(rootComponent);
+    var app = ensureRenderer().createApp(rootComponent); // 核心调用内层的runtime-core 中的createApp
+    var mount = app.mount;
+    app.mount = function (container) {
+        // 外层需要做元素清空操作
+        container = document.querySelector(container);
+        container.innerHTML = ''; // 清空容器中的内容
+        mount(container); // 调用底层mount方法
+    };
+    return app;
 }
 
 exports.computed = computed;
