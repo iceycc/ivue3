@@ -17,12 +17,11 @@
 
     function useSetName() {
         let state = reactive({
-            name: 'wby',
-            flag: false,
+            name: 'wby'
         })
-        setTimeout(() => {
-            state.flag = true
-        }, 1000)
+        // setTimeout(() => {
+        //     state.name = 'wnu'
+        // }, 1000)
         return state
     }
 
@@ -32,11 +31,12 @@
             // 返回可以是对象也可以是函数
             // 返回函数：
             return (instance) => {
-                return !state.flag ?
-                    h('div', {style: {background: 'yellow'}}, '状态旧' + state.flag) :
-                    h('div', {style: {color: 'green'}}, [
-                        h('li',{},'11'),
-                        h('li',{},'22')
+                return h('ul', {style: {background: 'yellow'}},
+                    [
+                        h('li', {style: {color: 'yellowgreen'}}, '哈哈哈1' + state.name),
+                        h('li', {style: {color: 'blue'}}, '哈哈哈2'),
+                        h('li', {style: {color: 'pick'}}, '哈哈哈3'),
+                        h('li', {style: {color: 'greenyellow'}}, '哈哈哈4'),
                     ])
             }
 

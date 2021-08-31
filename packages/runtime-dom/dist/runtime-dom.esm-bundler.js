@@ -35,7 +35,7 @@ function createVNode(type, props, children) {
     if (props === void 0) { props = {}; }
     if (children === void 0) { children = null; }
     //  如果是组件，那么组件类型是对象
-    var shapeFlags = isString(type) ? 1 /* ELEMENT */ :
+    var shapeFlag = isString(type) ? 1 /* ELEMENT */ :
         isObject(type) ? 4 /* STATEFUL_COMPONENT */ :
             0;
     var vnode = {
@@ -45,19 +45,19 @@ function createVNode(type, props, children) {
         component: null,
         el: null,
         key: props.key,
-        shapeFlags: shapeFlags
+        shapeFlag: shapeFlag
     };
     if (isArray(children)) {
         // 元素配合多个儿子
         // 00000001 假如是元素
         // 00010000 假如元素中有多个儿子
         // |= 00010001 17 或运算符  在运算过程中有一个1就是1
-        vnode.shapeFlags |= 16 /* ARRAY_CHILDREN */; //
+        vnode.shapeFlag |= 16 /* ARRAY_CHILDREN */; //
     }
     else {
         // 0000010 假如是组件
         // 组件里可能是空 也可能是文本
-        vnode.shapeFlags |= 8 /* TEXT_CHILDREN */;
+        vnode.shapeFlag |= 8 /* TEXT_CHILDREN */;
     }
     return vnode;
     // vue2里面区分孩子是不是数组
@@ -410,14 +410,13 @@ function toRefs(object) {
 // 初次元素渲染 render -> patch方法 -> processElement -> mountElement
 //
 function createRenderer(options) {
-    var hostCreateElement = options.createElement, hostInsert = options.insert; options.remove; var hostSetElementText = options.setElementText; options.createTextNode; var hostPatchProp = options.patchProp;
+    var hostCreateElement = options.createElement, hostInsert = options.insert, hostRemove = options.remove, hostSetElementText = options.setElementText; options.createTextNode; var hostPatchProp = options.patchProp;
     var mountElement = function (vnode, container) {
-        console.log(vnode, container);
-        var shapeFlags = vnode.shapeFlags, props = vnode.props, children = vnode.children, type = vnode.type;
+        var shapeFlag = vnode.shapeFlag, props = vnode.props, children = vnode.children, type = vnode.type;
         // 将真实节点和虚拟节点关联起来
         var el = vnode.el = hostCreateElement(type); // 创建真实dom
         hostInsert(el, container);
-        if (shapeFlags & 8 /* TEXT_CHILDREN */) {
+        if (shapeFlag & 8 /* TEXT_CHILDREN */) {
             hostSetElementText(el, children); // 文本节点，渲染文本节点
         }
         else {
@@ -437,6 +436,52 @@ function createRenderer(options) {
             patch(null, child, container);
         }
     }
+    var patchElement = function (n1, n2, container) {
+        // 复用标签
+        var el = n2.el = n1.el;
+        var oldProps = n1.props;
+        var newProps = n2.props;
+        patchProps(oldProps, newProps, el); // 新旧属性比对
+        patchChildren(n1, n2, el); // 核心
+    };
+    // 比对孩子 diff
+    function patchChildren(n1, n2, el) {
+        var c1 = n1.children;
+        var c2 = n2.children;
+        var prevShapeFlag = n1.shapeFlag;
+        var nextShapeFlag = n2.shapeFlag;
+        // 新的是文本,老的是文本，
+        // 新的是文本,老的是数组
+        if (nextShapeFlag & 8 /* TEXT_CHILDREN */) {
+            if (c1 !== c2) {
+                hostSetElementText(el, c2);
+            }
+        }
+        else {
+            // 新的是数组，老的文本
+            // 新的是数组，老的是数组
+            if (prevShapeFlag & 16 /* ARRAY_CHILDREN */) ;
+            else {
+                hostSetElementText(el, ''); // 清空老的
+                mountChildren(c2, el); // 将孩子遍历插入
+            }
+        }
+    }
+    function patchProps(oldProps, newProps, el) {
+        if (oldProps !== newProps) {
+            for (var key in newProps) {
+                var prev = oldProps[key];
+                var next = newProps[key];
+                hostPatchProp(el, key, prev, next);
+            }
+            // 老的有，新的没，需要删调
+            for (var key in oldProps) {
+                if (!(key in oldProps)) {
+                    hostPatchProp(el, key, oldProps[key], null);
+                }
+            }
+        }
+    }
     var mountComponent = function (vnode, container) {
         // vue是组件级更新的，每个组件应该有个effect/渲染effect 类比vue渲染watcher
         // 组件的创建 拿到外面去
@@ -452,11 +497,20 @@ function createRenderer(options) {
         effect(function () {
             if (!instance.isMounted) { // 组件没有被渲染
                 console.log('初始化');
-                var subTree = instance.subTree = instance.render(instance);
+                var subTree = instance.subTree = instance.render();
                 // 用户setup设置返回的render，可以调用h，生成虚拟节点，里面会用到响应式数据，就会收集依赖了
                 // 虚拟节点转真实dom
                 patch(null, subTree, container);
                 instance.isMounted = true; // 下次就走更新了
+            }
+            else {
+                // 组件的更新
+                console.log('更新');
+                var preTree = instance.subTree;
+                var nextTree = instance.render();
+                patch(preTree, nextTree, container);
+                instance.subTree = nextTree;
+                instance.isMounted = true;
             }
         });
     };
@@ -466,6 +520,10 @@ function createRenderer(options) {
             // 元素挂载
             mountElement(n2, container);
         }
+        else {
+            // 组件更新
+            patchElement(n1, n2);
+        }
     };
     // 组件
     var processComponent = function (n1, n2, container) {
@@ -474,15 +532,28 @@ function createRenderer(options) {
             mountComponent(n2, container);
         }
     };
+    var isSameVnodeType = function (n1, n2) {
+        return n1.type === n2.type && n1.key === n2.key;
+    };
     var patch = function (n1, n2, container) {
+        console.log(n1, n2, container);
+        // 1 类型不一样，key不一样,不复用
+        // 2 复用节点后，比对属性
+        // 3 对不儿子，一方有儿子，2方都有儿子
+        // 4 都有儿子才是diff
+        if (n1 && !isSameVnodeType(n1, n2)) {
+            // 直接替换
+            hostRemove(n1.el);
+            n1 = null;
+        }
         // 开始渲染
-        var shapeFlags = n2.shapeFlags;
+        var shapeFlag = n2.shapeFlag;
         // 例如  0b1100 & 0b0001
         //      0b1100 & 0b1000
-        if (shapeFlags & 1 /* ELEMENT */) { // 普通节点
+        if (shapeFlag & 1 /* ELEMENT */) { // 普通节点
             processElement(n1, n2, container);
         }
-        else if (shapeFlags & 4 /* STATEFUL_COMPONENT */) { // 状态组件
+        else if (shapeFlag & 4 /* STATEFUL_COMPONENT */) { // 状态组件
             processComponent(n1, n2, container);
         }
     };
