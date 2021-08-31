@@ -1,3 +1,6 @@
+import {isFunction, isObject} from "@iVue/shared"
+import {effect} from "@iVue/reactivity";
+
 export function createComponentInstance(vnode) {
     const instance = {
         type: vnode.type,
@@ -24,12 +27,42 @@ function setupStateFullComponent(instance) {
     if (setup) {
         // props和上下文
         const setupResult = setup(instance.props, {})
-        console.log('setupResult', setupResult)
+        // console.log('setupResult', setupResult)
+        // setup可以返回一个render函数也可以返回状态对象
+        handleSetupResult(instance, setupResult)
     }
 }
 
-export function setupEffect() {
+function handleSetupResult(instance, setupResult) {
+    if (isFunction(setupResult)) {
+        instance.render = setupResult
+    } else if (isObject(setupResult)) {
+        instance.setupState = setupResult
+    }
+    // 如果用户用的vue2的写法，render，data。如何兼容
+    finishComponentSetup(instance)
 
 }
+
+function finishComponentSetup(instance) {
+    const Component = instance.type
+    // vue3 setup的优先级更高。比如返回状态或者返回render函数
+    if (Component.render && !instance.render) { // vue2的方法
+        instance.render = Component.render
+    }
+    if (!instance.render) {
+        // todo 如果没有render函数，找外层template -》 ast -》 codegen render -》 render函数
+        // instance.render = ()=>{}
+    }
+    // 变量合并 数据要和vue2中的代码合并
+    applyOptions(instance, Component)
+}
+
+function applyOptions(instance, Component) {
+    //todo 各种合并 data 、 computed等等
+}
+
+
+
 
 

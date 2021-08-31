@@ -386,24 +386,96 @@ function setupStateFullComponent(instance) {
     if (setup) {
         // props和上下文
         var setupResult = setup(instance.props, {});
-        console.log('setupResult', setupResult);
+        // console.log('setupResult', setupResult)
+        // setup可以返回一个render函数也可以返回状态对象
+        handleSetupResult(instance, setupResult);
     }
 }
+function handleSetupResult(instance, setupResult) {
+    if (isFunction(setupResult)) {
+        instance.render = setupResult;
+    }
+    else if (isObject(setupResult)) {
+        instance.setupState = setupResult;
+    }
+    // 如果用户用的vue2的写法，render，data。如何兼容
+    finishComponentSetup(instance);
+}
+function finishComponentSetup(instance) {
+    var Component = instance.type;
+    // vue3 setup的优先级更高。比如返回状态或者返回render函数
+    if (Component.render && !instance.render) { // vue2的方法
+        instance.render = Component.render;
+    }
+    if (!instance.render) ;
+}
 
+// 初次组件渲染 render -》 patch方法 -》渲染组件 -》processComponent -> mountComponent ->
+// 初次元素渲染 render -> patch方法 -> processElement -> mountElement
+//
 function createRenderer(options) {
+    var hostCreateElement = options.createElement, hostInsert = options.insert; options.remove; var hostSetElementText = options.setElementText; options.createTextNode; var hostPatchProp = options.patchProp;
+    var mountElement = function (vnode, container) {
+        console.log(vnode, container);
+        var shapeFlags = vnode.shapeFlags, props = vnode.props, children = vnode.children, type = vnode.type;
+        // 将真实节点和虚拟节点关联起来
+        var el = vnode.el = hostCreateElement(type); // 创建真实dom
+        hostInsert(el, container);
+        if (shapeFlags & 8 /* TEXT_CHILDREN */) {
+            hostSetElementText(el, children); // 文本节点，渲染文本节点
+        }
+        else {
+            mountChildren(children, el);
+        }
+        if (props) {
+            for (var key in props) {
+                if (props.hasOwnProperty(key)) {
+                    hostPatchProp(el, key, null, props[key]);
+                }
+            }
+        }
+    };
+    function mountChildren(children, container) {
+        for (var _i = 0, children_1 = children; _i < children_1.length; _i++) {
+            var child = children_1[_i];
+            patch(null, child, container);
+        }
+    }
     var mountComponent = function (vnode, container) {
         // vue是组件级更新的，每个组件应该有个effect/渲染effect 类比vue渲染watcher
         // 组件的创建 拿到外面去
         // 1 根据虚拟节点 创建实例
         var instance = vnode.component = createComponentInstance(vnode);
         // 2 找到setup方法
-        setupComponent(instance);
+        setupComponent(instance); // instance = {type,props,component,render}
+        // 3 设置渲染effect
+        setupRenderEffect(instance, vnode, container);
+    };
+    // 设置每个组件都会提供一个effect方法
+    var setupRenderEffect = function (instance, vnode, container) {
+        effect(function () {
+            if (!instance.isMounted) { // 组件没有被渲染
+                console.log('初始化');
+                var subTree = instance.subTree = instance.render(instance);
+                // 用户setup设置返回的render，可以调用h，生成虚拟节点，里面会用到响应式数据，就会收集依赖了
+                // 虚拟节点转真实dom
+                patch(null, subTree, container);
+                instance.isMounted = true; // 下次就走更新了
+            }
+        });
+    };
+    // 元素
+    var processElement = function (n1, n2, container) {
+        if (n1 === null) {
+            // 元素挂载
+            mountElement(n2, container);
+        }
     };
     // 组件
     var processComponent = function (n1, n2, container) {
         if (n1 === null) {
             // 组件挂载
-            mountComponent(n2);
+            mountComponent(n2, container);
         }
     };
     var patch = function (n1, n2, container) {
@@ -411,21 +483,27 @@ function createRenderer(options) {
         var shapeFlags = n2.shapeFlags;
         // 例如  0b1100 & 0b0001
         //      0b1100 & 0b1000
-        if (shapeFlags & 1 /* ELEMENT */) ;
+        if (shapeFlags & 1 /* ELEMENT */) { // 普通节点
+            processElement(n1, n2, container);
+        }
         else if (shapeFlags & 4 /* STATEFUL_COMPONENT */) { // 状态组件
-            processComponent(n1, n2);
+            processComponent(n1, n2, container);
         }
     };
     // options 不同平台传入的不同， 我们core中不关心options里的api具体是什么 ，只需要调用即可
     var render = function (vnode, container) {
         // 初次渲染 /  更新渲染(有prevVnode)
-        patch(null, vnode);
+        patch(null, vnode, container);
     };
     return {
         createApp: createAppApi(render) // 方便拓展，改造成高阶函数方便传人参数
     };
 }
 // 核心包很多方法
+
+function h(type, props, children) {
+    return createVNode(type, props, children);
+}
 
 var nodeOps = {
     createElement: function (type) {
@@ -512,7 +590,9 @@ function createApp(rootComponent) {
 
 exports.computed = computed;
 exports.createApp = createApp;
+exports.createRenderer = createRenderer;
 exports.effect = effect;
+exports.h = h;
 exports.reactive = reactive;
 exports.ref = ref;
 exports.toRefs = toRefs;

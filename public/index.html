@@ -19,9 +19,9 @@
         let state = reactive({
             name: 'wby'
         })
-        setTimeout(() => {
-            state.name = 'wnu'
-        }, 1000)
+        // setTimeout(() => {
+        //     state.name = 'wnu'
+        // }, 1000)
         return state
     }
 
@@ -30,17 +30,30 @@
             let state = useSetName()
             // 返回可以是对象也可以是函数
             // 返回函数：
-            return () => {
-                return h('div', {style: {color: 'red'}}, '你好呀' + state.name)
+            return (instance) => {
+                return h('ul', {style: {background: 'yellow'}},
+                    [
+                        h('li', {style: {color: 'yellowgreen'}}, '哈哈哈1' + state.name),
+                        h('li', {style: {color: 'blue'}}, '哈哈哈2'),
+                        h('li', {style: {color: 'pick'}}, '哈哈哈3'),
+                        h('li', {style: {color: 'greenyellow'}}, '哈哈哈4'),
+                    ])
             }
 
         },
+        data() {
+            return {
+                a: 1 //如果setup返回一个状态对象
+            }
+        },
         // 这个还支持但是有些使用setup
-        render() {
-            return h('div', {style: {color: 'red'}}, '你好呀222')
-        }
+        // render() {
+        //     return h('div', {style: {color: 'red'}}, '你好呀222')
+        // }
     }
-    console.log(createApp(App))
+    // new Vue({
+    //     render:h=>h(App)
+    // }).$mount('#app')
     createApp(App).mount('#app')
 </script>
 </body>

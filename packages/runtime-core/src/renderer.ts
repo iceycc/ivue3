@@ -1,11 +1,46 @@
 import {createAppApi} from "./apiCreateApp";
 import {ShapeFlags} from "@iVue/shared";
-import {createComponentInstance, setupComponent, setupEffect} from "./component";
-
+import {createComponentInstance, setupComponent} from "./component";
+import {effect} from "@iVue/reactivity";
+import {patchProp} from "../../runtime-dom/src/patchProp";
+// 初次组件渲染 render -》 patch方法 -》渲染组件 -》processComponent -> mountComponent ->
+// 初次元素渲染 render -> patch方法 -> processElement -> mountElement
+//
 export function createRenderer(options) {
-    const mountElement = (n2, container) => {
-
+    let {
+        createElement: hostCreateElement,
+        insert: hostInsert,
+        remove: hostRemove,
+        setElementText: hostSetElementText,
+        createTextNode: hostCreateNode,
+        patchProp: hostPatchProp
+    } = options
+    const mountElement = (vnode, container) => {
+        console.log(vnode, container)
+        let {shapeFlags, props, children, type} = vnode
+        // 将真实节点和虚拟节点关联起来
+        let el = vnode.el = hostCreateElement(type) // 创建真实dom
+        hostInsert(el, container)
+        if (shapeFlags & ShapeFlags.TEXT_CHILDREN) {
+            hostSetElementText(el, children) // 文本节点，渲染文本节点
+        } else {
+            mountChildren(children, el)
+        }
+        if (props) {
+            for (let key in props) {
+                if (props.hasOwnProperty(key)) {
+                    hostPatchProp(el, key, null, props[key])
+                }
+            }
+        }
     }
+
+    function mountChildren(children, container) {
+        for (let child of children) {
+            patch(null, child, container)
+        }
+    }
+
     const patchElement = (n1, n2, container) => {
 
     }
@@ -16,9 +51,26 @@ export function createRenderer(options) {
         // 1 根据虚拟节点 创建实例
         const instance = vnode.component = createComponentInstance(vnode)
         // 2 找到setup方法
-        setupComponent(instance)
+        setupComponent(instance) // instance = {type,props,component,render}
         // 3 设置渲染effect
-        setupEffect()
+        setupRenderEffect(instance, vnode, container)
+
+    }
+    // 设置每个组件都会提供一个effect方法
+    const setupRenderEffect = (instance, vnode, container) => {
+        effect(() => { // effect默认会执行
+            if (!instance.isMounted) { // 组件没有被渲染
+                console.log('初始化')
+                let subTree = instance.subTree = instance.render(instance)
+                // 用户setup设置返回的render，可以调用h，生成虚拟节点，里面会用到响应式数据，就会收集依赖了
+
+                // 虚拟节点转真实dom
+                patch(null, subTree, container)
+                instance.isMounted = true // 下次就走更新了
+            } else {
+                // 组件的更新
+            }
+        })
     }
     const patchComponent = (n1, n2, container) => {
 
@@ -26,7 +78,7 @@ export function createRenderer(options) {
     // 元素
     const processElement = (n1, n2, container) => {
         if (n1 === null) {
-            // 组件挂载
+            // 元素挂载
             mountElement(n2, container)
         } else {
             // 组件更新
@@ -53,7 +105,6 @@ export function createRenderer(options) {
             processElement(n1, n2, container)
         } else if (shapeFlags & ShapeFlags.STATEFUL_COMPONENT) { // 状态组件
             processComponent(n1, n2, container)
-
         }
     }
 
@@ -67,5 +118,6 @@ export function createRenderer(options) {
         createApp: createAppApi(render) // 方便拓展，改造成高阶函数方便传人参数
     }
 }
+
 
 // 核心包很多方法
