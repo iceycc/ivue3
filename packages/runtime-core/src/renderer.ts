@@ -15,11 +15,11 @@ export function createRenderer(options) {
         createTextNode: hostCreateNode,
         patchProp: hostPatchProp
     } = options
-    const mountElement = (vnode, container) => {
+    const mountElement = (vnode, container, anchor) => {
         let {shapeFlag, props, children, type} = vnode
         // 将真实节点和虚拟节点关联起来
         let el = vnode.el = hostCreateElement(type) // 创建真实dom
-        hostInsert(el, container)
+        hostInsert(el, container, anchor) // anchor不传默认为往后插入appendChild
         if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
             hostSetElementText(el, children) // 文本节点，渲染文本节点
         } else {
@@ -73,9 +73,72 @@ export function createRenderer(options) {
         }
 
     }
+
     // 对新旧数组孩子比对
     function patchKeyedChildren(c1, c2, el) {
+        // 两方都有儿子 核心的diff算法
 
+        // 两个儿子 要尽可能复用
+        // 1）abc
+        //    abde  i = 2
+        // 先默认处理特殊情况
+        let i = 0;
+        let e1 = c1.length - 1;
+        let e2 = c2.length - 1;
+        while (i <= e1 && i <= e2) { // 谁先比对完毕就结束
+            const n1 = c1[i];
+            const n2 = c2[i];
+            if (isSameVnodeType(n1, n2)) {
+                patch(n1, n2, el); // 递归比较子节点
+            } else {
+                break;
+            }
+            i++;
+        }
+        // 2) abc    i = 0  e1=2  e2=3
+        //   eabc    i=0 e1=-1 e2=0
+        while (i <= e1 && i <= e2) {
+            const n1 = c1[e1];
+            const n2 = c2[e2];
+            if (isSameVnodeType(n1, n2)) {
+                patch(n1, n2, el);
+            } else {
+                break;
+            }
+            e1--;
+            e2--;
+        }
+        // 老的都能复用 只是向前或者向后插入了元素
+        // 3) 考虑极端的情况
+        // abc => abcdef （i=3  e1=2  e2= 5）
+        //  abc => fedabc (i=0 e1=-1 e2=2)
+        // 我怎么知道是新的比老的多？
+        if (i > e1) { // 最起码能保证老节点都比较完毕了
+            if (i <= e2) { // 新增的节点
+                // 我怎么知道是向前插入 还是向后插入 , 如果是向前插入，那应该插入到谁的前面
+                // 如果前面都一样 e2 不会动 取他的 + 1 个 比数组长度大
+                // 如果后面都一样 e2 会向前 取他的 + 1 个 会比数组长度小
+                const nextPos = e2 + 1;
+                const anchor = nextPos < c2.length ? c2[nextPos].el : null// 参照物
+                while (i <= e2) {
+                    patch(null, c2[i], el, anchor);
+                    i++;
+                }
+            }
+            // abcdef abc (i=3 e1=5 e2=2)
+        } else if (i > e2) {
+            while (i <= e1) {
+                hostRemove(c1[i].el);
+                i++;
+            }
+        } else {
+            // todo 乱序比对 比对两方儿子的差异
+            //  最长递增子序列
+            // abc   eabcf
+
+
+        }
+        // 最后在考虑都不一样的情况
     }
 
     function patchProps(oldProps, newProps, el) {
@@ -132,10 +195,10 @@ export function createRenderer(options) {
 
     }
     // 元素
-    const processElement = (n1, n2, container) => {
+    const processElement = (n1, n2, container, anchor) => {
         if (n1 === null) {
             // 元素挂载
-            mountElement(n2, container)
+            mountElement(n2, container, anchor)
         } else {
             // 组件更新
             patchElement(n1, n2, container)
@@ -154,7 +217,7 @@ export function createRenderer(options) {
     const isSameVnodeType = (n1, n2) => {
         return n1.type === n2.type && n1.key === n2.key
     }
-    const patch = (n1, n2, container) => {
+    const patch = (n1, n2, container, anchor = null) => {
         console.log(n1, n2, container);
         // 1 类型不一样，key不一样,不复用
         // 2 复用节点后，比对属性
@@ -172,7 +235,7 @@ export function createRenderer(options) {
         // 例如  0b1100 & 0b0001
         //      0b1100 & 0b1000
         if (shapeFlag & ShapeFlags.ELEMENT) { // 普通节点
-            processElement(n1, n2, container)
+            processElement(n1, n2, container, anchor)
         } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) { // 状态组件
             processComponent(n1, n2, container)
         }

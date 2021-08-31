@@ -5,7 +5,7 @@ export const mutableHandlers = {
     // 目标原对象 属性 代理后的对象
     get(target, key, receiver) { // // 内置的 proxy中get和set参数是固定的
         // / 需要让传递来的fn 变成响应式的effect，数据有变化 这个fn就能重新执行
-        // todo 当取值的时候 应该将effect 存储起来 依赖收集
+        // 当取值的时候 应该将effect 存储起来 依赖收集
         return Reflect.get(target, key, receiver);
     },
     set(target, key, value, receiver) {

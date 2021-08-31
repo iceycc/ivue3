@@ -415,11 +415,11 @@ function toRefs(object) {
 //
 function createRenderer(options) {
     var hostCreateElement = options.createElement, hostInsert = options.insert, hostRemove = options.remove, hostSetElementText = options.setElementText; options.createTextNode; var hostPatchProp = options.patchProp;
-    var mountElement = function (vnode, container) {
+    var mountElement = function (vnode, container, anchor) {
         var shapeFlag = vnode.shapeFlag, props = vnode.props, children = vnode.children, type = vnode.type;
         // 将真实节点和虚拟节点关联起来
         var el = vnode.el = hostCreateElement(type); // 创建真实dom
-        hostInsert(el, container);
+        hostInsert(el, container, anchor); // anchor不传默认为往后插入appendChild
         if (shapeFlag & 8 /* TEXT_CHILDREN */) {
             hostSetElementText(el, children); // 文本节点，渲染文本节点
         }
@@ -464,12 +464,77 @@ function createRenderer(options) {
         else {
             // 新的是数组，老的文本
             // 新的是数组，老的是数组
-            if (prevShapeFlag & 16 /* ARRAY_CHILDREN */) ;
+            if (prevShapeFlag & 16 /* ARRAY_CHILDREN */) {
+                patchKeyedChildren(c1, c2, el);
+            }
             else {
                 hostSetElementText(el, ''); // 清空老的
                 mountChildren(c2, el); // 将孩子遍历插入
             }
         }
+    }
+    // 对新旧数组孩子比对
+    function patchKeyedChildren(c1, c2, el) {
+        // 两方都有儿子 核心的diff算法
+        // 两个儿子 要尽可能复用
+        // 1）abc
+        //    abde  i = 2
+        // 先默认处理特殊情况
+        var i = 0;
+        var e1 = c1.length - 1;
+        var e2 = c2.length - 1;
+        while (i <= e1 && i <= e2) { // 谁先比对完毕就结束
+            var n1 = c1[i];
+            var n2 = c2[i];
+            if (isSameVnodeType(n1, n2)) {
+                patch(n1, n2, el); // 递归比较子节点
+            }
+            else {
+                break;
+            }
+            i++;
+        }
+        // 2) abc    i = 0  e1=2  e2=3
+        //   eabc    i=0 e1=-1 e2=0
+        while (i <= e1 && i <= e2) {
+            var n1 = c1[e1];
+            var n2 = c2[e2];
+            if (isSameVnodeType(n1, n2)) {
+                patch(n1, n2, el);
+            }
+            else {
+                break;
+            }
+            e1--;
+            e2--;
+        }
+        // 老的都能复用 只是向前或者向后插入了元素
+        // 3) 考虑极端的情况
+        // abc => abcdef （i=3  e1=2  e2= 5）
+        //  abc => fedabc (i=0 e1=-1 e2=2)
+        // 我怎么知道是新的比老的多？
+        if (i > e1) { // 最起码能保证老节点都比较完毕了
+            if (i <= e2) { // 新增的节点
+                // 我怎么知道是向前插入 还是向后插入 , 如果是向前插入，那应该插入到谁的前面
+                // 如果前面都一样 e2 不会动 取他的 + 1 个 比数组长度大
+                // 如果后面都一样 e2 会向前 取他的 + 1 个 会比数组长度小
+                var nextPos = e2 + 1;
+                var anchor = nextPos < c2.length ? c2[nextPos].el : null; // 参照物
+                while (i <= e2) {
+                    patch(null, c2[i], el, anchor);
+                    i++;
+                }
+            }
+            // abcdef abc (i=3 e1=5 e2=2)
+        }
+        else if (i > e2) {
+            while (i <= e1) {
+                hostRemove(c1[i].el);
+                i++;
+            }
+        }
+        else ;
+        // 最后在考虑都不一样的情况
     }
     function patchProps(oldProps, newProps, el) {
         if (oldProps !== newProps) {
@@ -519,10 +584,10 @@ function createRenderer(options) {
         });
     };
     // 元素
-    var processElement = function (n1, n2, container) {
+    var processElement = function (n1, n2, container, anchor) {
         if (n1 === null) {
             // 元素挂载
-            mountElement(n2, container);
+            mountElement(n2, container, anchor);
         }
         else {
             // 组件更新
@@ -539,7 +604,8 @@ function createRenderer(options) {
     var isSameVnodeType = function (n1, n2) {
         return n1.type === n2.type && n1.key === n2.key;
     };
-    var patch = function (n1, n2, container) {
+    var patch = function (n1, n2, container, anchor) {
+        if (anchor === void 0) { anchor = null; }
         console.log(n1, n2, container);
         // 1 类型不一样，key不一样,不复用
         // 2 复用节点后，比对属性
@@ -555,7 +621,7 @@ function createRenderer(options) {
         // 例如  0b1100 & 0b0001
         //      0b1100 & 0b1000
         if (shapeFlag & 1 /* ELEMENT */) { // 普通节点
-            processElement(n1, n2, container);
+            processElement(n1, n2, container, anchor);
         }
         else if (shapeFlag & 4 /* STATEFUL_COMPONENT */) { // 状态组件
             processComponent(n1, n2, container);

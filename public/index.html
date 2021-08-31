@@ -33,10 +33,19 @@
             // 返回函数：
             return (instance) => {
                 return !state.flag ?
-                    h('div', {style: {background: 'yellow'}}, '状态旧' + state.flag) :
+                    h('div', {style: {background: 'yellow'}}, [
+                        h('li', {key: 'A'}, 'A'),
+                        // h('li', {key: 'B'}, 'B'),
+                        h('li', {key: 'C'}, 'C'),
+                        // h('li', {key: 'D'}, 'D'),
+                        h('li', {key: 'E'}, 'E')
+                    ]) :
                     h('div', {style: {color: 'green'}}, [
-                        h('li',{},'11'),
-                        h('li',{},'22')
+                        h('li', {key: 'A'}, 'A'),
+                        h('li', {key: 'B'}, 'B'),
+                        h('li', {key: 'C'}, 'C'),
+                        h('li', {key: 'D'}, 'D'),
+                        h('li', {key: 'E'}, 'E')
                     ])
             }
 
