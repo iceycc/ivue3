@@ -57,7 +57,7 @@
 ### vue3 diff算法
 
 ## TODOS
--[ ] 兼容vue2optionsApi，参数合并 data、computed等
--[ ] compiler模版编译
--[ ] diff乱序处理 最长递增子序列
+- [ ] 兼容vue2optionsApi，参数合并 data、computed等
+- [ ] compiler模版编译
+- [ ] diff乱序处理 最长递增子序列
 
